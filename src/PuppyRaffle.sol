@@ -75,7 +75,7 @@ contract PuppyRaffle is ERC721, Ownable {
     /// @notice they have to pay the entrance fee * the number of players
     /// @notice duplicate entrants are not allowed
     /// @param newPlayers the list of players to enter the raffle
-    // @audit-issue -> unbounded loop can lead to DoS. Remove the loops 
+    // @audit-issue -> unbounded loop can lead to DoS. Remove the loops
     function enterRaffle(address[] memory newPlayers) public payable {
         require(msg.value == entranceFee * newPlayers.length, "PuppyRaffle: Must send enough to enter raffle");
         for (uint256 i = 0; i < newPlayers.length; i++) {
@@ -161,7 +161,7 @@ contract PuppyRaffle is ERC721, Ownable {
     // Q: Can I change the feeAddress to an EOA, call withdrawFees, and then call it again to drain the contract?
     function withdrawFees() external {
         // Q: is total fees being correctly calculated?
-        // Q: Were custom reverts availabre in this version of solidity 
+        // Q: Were custom reverts availabre in this version of solidity
         // Q: what if it's 0?
         require(address(this).balance == uint256(totalFees), "PuppyRaffle: There are currently players active!");
         uint256 feesToWithdraw = totalFees;
