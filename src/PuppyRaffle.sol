@@ -161,6 +161,8 @@ contract PuppyRaffle is ERC721, Ownable {
     // Q: Can I change the feeAddress to an EOA, call withdrawFees, and then call it again to drain the contract?
     function withdrawFees() external {
         // Q: is total fees being correctly calculated?
+        // Q: Were custom reverts availabre in this version of solidity 
+        // Q: what if it's 0?
         require(address(this).balance == uint256(totalFees), "PuppyRaffle: There are currently players active!");
         uint256 feesToWithdraw = totalFees;
         totalFees = 0;
