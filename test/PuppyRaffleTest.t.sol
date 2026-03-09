@@ -246,5 +246,6 @@ contract PuppyRaffleTest is Test {
         console.log("Gas used to enter 2nd 100 players: ", gasUsedSecond);
         assert(gasUsedSecond > gasUsedFirst);
 
+//
     }
 }
