@@ -139,6 +139,7 @@ contract PuppyRaffle is ERC721, Ownable {
         uint256 fee = (totalAmountCollected * 20) / 100;
         // this is the total fee that the owner should collect
         // @audit overflow
+        // @audit unsafe cast of uint256 to uint64
         totalFees = totalFees + uint64(fee);
 
         uint256 tokenId = totalSupply();
@@ -157,6 +158,8 @@ contract PuppyRaffle is ERC721, Ownable {
         delete players;
         raffleStartTime = block.timestamp;
         previousWinner = winner;
+        // @audit ca we reeenter?
+        // DoS if the winner is a contract that doesn't accept ETH or has a fallback function that reverts.
         (bool success,) = winner.call{value: prizePool}("");
         require(success, "PuppyRaffle: Failed to send prize pool to winner");
         _safeMint(winner, tokenId);
@@ -168,9 +171,11 @@ contract PuppyRaffle is ERC721, Ownable {
         // Q: is total fees being correctly calculated?
         // Q: Were custom reverts availabre in this version of solidity
         // Q: what if it's 0?
+        // @audit mishandling ETH
         require(address(this).balance == uint256(totalFees), "PuppyRaffle: There are currently players active!");
         uint256 feesToWithdraw = totalFees;
         totalFees = 0;
+        // Q: what if the feeAddress is a contract that doesn't accept ETH or has a fallback function that reverts?
         (bool success,) = feeAddress.call{value: feesToWithdraw}("");
         require(success, "PuppyRaffle: Failed to withdraw fees");
     }
@@ -183,6 +188,7 @@ contract PuppyRaffle is ERC721, Ownable {
     }
 
     /// @notice this function will return true if the msg.sender is an active player
+    // @audit -> it isn't used anywhere.
     function _isActivePlayer() internal view returns (bool) {
         for (uint256 i = 0; i < players.length; i++) {
             if (players[i] == msg.sender) {
