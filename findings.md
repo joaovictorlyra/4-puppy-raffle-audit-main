@@ -216,3 +216,74 @@ Alternatively, if you want to use an older version of Solidity, you can use a li
 ```
 
 We additionally want to bring your attention to another attack vector as a result of this line in a future finding.
+
+# Gas
+
+### G-1 Unchanged state variables should be declared constant or immutable.
+
+Reading from storage is much more expensive than reading from a constant or immutable variable.
+
+Instances:
+- `PuppyRaffle:raffleDuration` should be `immutable`
+- `PuppyRaffle:commonImageUri`should be `constant`
+- `PuppyRaffle:rareImageUri`should be `constant`
+- `PuppyRaffle:legendaryUri` should be `constant`
+
+### G-2 Storage variables in a loop should be cached.
+
+Everytime you call `players.length` you read from storage, as opposed to memory which is more gas efficient
+
+```diff
++ uint256 playersLength = players.length;
+- for (uint256 i = 0; i < players.length - 1; i++) {
++ for (uint256 i = 0; i < playersLength - 1; i++) {
+-            for (uint256 j = i + 1; j < players.length; j++) {
++            for (uint256 j = i + 1; j < playersLength; j++) {
+
+                require(players[i] != players[j], "PuppyRaffle: Duplicate player");
+            }
+        }
+```
+
+
+### I-1: Solidity pragma should be specific, not wide
+​
+Consider using a specific version of Solidity in your contracts instead of a wide version. For example, instead of `pragma solidity ^0.8.0;`, use `pragma solidity 0.8.0;`
+​
+- Found in src/PuppyRaffle.sol [Line: 3](src/PuppyRaffle.sol#L3)
+​
+	```solidity
+	pragma solidity ^0.7.6;
+	```
+
+### I-2: Using an outdated version of solidity is not recommended
+
+solc frequently releases new compiler versions. Using an old version prevents access to new Solidity security checks. We also recommend avoiding complex pragma statement.
+
+**Recommendation**
+Deploy with a recent version of Solidity (at least 0.8.0) with no known severe issues.
+
+Use a simple pragma version that allows any of these versions. Consider using the latest version of Solidity for testing.
+
+Please see [Slither](https://github.com/crytic/slither/wiki/Detector-Documentation#incorrect-versions-of-solidity) documentation for more information
+
+### I-3: Missing checks for `address(0)` when assigning values to address state variables
+
+Check for `address(0)` when assigning values to address state variables.
+
+<details><summary>2 Found Instances</summary>
+
+
+- Found in src/PuppyRaffle.sol [Line: 69](src/PuppyRaffle.sol#L69)
+
+	```solidity
+	        feeAddress = _feeAddress;
+	```
+
+- Found in src/PuppyRaffle.sol [Line: 203](src/PuppyRaffle.sol#L203)
+
+	```solidity
+	        feeAddress = newFeeAddress;
+	```
+
+</details>
