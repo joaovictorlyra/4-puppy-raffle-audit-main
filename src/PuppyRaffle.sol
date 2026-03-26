@@ -22,7 +22,7 @@ contract PuppyRaffle is ERC721, Ownable {
     uint256 public immutable entranceFee;
     address[] public players; // Q: can this lead to a DoS?
 
-    // @audit-gas it should be immutable
+    // @written -> it should be immutable
     uint256 public raffleDuration;
     uint256 public raffleStartTime;
     address public previousWinner;
@@ -37,19 +37,19 @@ contract PuppyRaffle is ERC721, Ownable {
     mapping(uint256 => string) public rarityToName;
 
     // Stats for the common puppy (pug)
-    // @audit-gas -> it should be constant
+    // @written -> it should be constant
     string private commonImageUri = "ipfs://QmSsYRx3LpDAb1GZQm7zZ1AuHZjfbPkD6J7s9r41xu1mf8";
     uint256 public constant COMMON_RARITY = 70;
     string private constant COMMON = "common";
 
     // Stats for the rare puppy (st. bernard)
-    // @audit-gas -> it should be constant
+    // @written -> it should be constant
     string private rareImageUri = "ipfs://QmUPjADFGEKmfohdTaNcWhp7VGk26h5jXDA7v3VtTnTLcW";
     uint256 public constant RARE_RARITY = 25;
     string private constant RARE = "rare";
 
     // Stats for the legendary puppy (shiba inu)
-    // @audit-gas -> it should be constant
+    // @written -> it should be constant
     string private legendaryImageUri = "ipfs://QmYx6GsYAKnNzZ9A6NvEKV9nf1VaDzJrqDR23Y8YSkebLU";
     uint256 public constant LEGENDARY_RARITY = 5;
     string private constant LEGENDARY = "legendary";
@@ -64,7 +64,7 @@ contract PuppyRaffle is ERC721, Ownable {
     /// @param _raffleDuration the duration in seconds of the raffle
     constructor(uint256 _entranceFee, address _feeAddress, uint256 _raffleDuration) ERC721("Puppy Raffle", "PR") {
         entranceFee = _entranceFee;
-        // @audit-info check for zero address
+        // @written -> check for zero address
         // input validation
         feeAddress = _feeAddress;
         raffleDuration = _raffleDuration;
@@ -110,7 +110,7 @@ contract PuppyRaffle is ERC721, Ownable {
         require(playerAddress == msg.sender, "PuppyRaffle: Only the player can refund");
         require(playerAddress != address(0), "PuppyRaffle: Player already refunded, or is not active");
 
-        // @audit-issue -> doesn't follow CEI pattern, vulnerable to reentrancy attack. Update state before sending funds
+        // wrritten -> doesn't follow CEI pattern, vulnerable to reentrancy attack. Update state before sending funds
         payable(msg.sender).sendValue(entranceFee);
 
         players[playerIndex] = address(0);
@@ -127,6 +127,7 @@ contract PuppyRaffle is ERC721, Ownable {
                 return i;
             }
         }
+        //@audit-issue -> returning 0 can be ambiguous, because the player at index 0 could be the player we're looking for, or it could mean the player is not active. Consider returning a tuple (bool, uint256) where the bool indicates if the player is active, and the uint256 is the index.
         return 0;
     }
 
