@@ -319,6 +319,73 @@ Alternatively, if you want to use an older version of Solidity, you can use a li
 
 We additionally want to bring your attention to another attack vector as a result of this line in a future finding.
 
+# Medium
+
+### [M-3] Unsafe cast of `PuppyRaffle::fee` loses fees
+
+**Description:** In `PuppyRaffle::selectWinner` their is a type cast of a `uint256` to a `uint64`. This is an unsafe cast, and if the `uint256` is larger than `type(uint64).max`, the value will be truncated. 
+
+```javascript
+    function selectWinner() external {
+        require(block.timestamp >= raffleStartTime + raffleDuration, "PuppyRaffle: Raffle not over");
+        require(players.length > 0, "PuppyRaffle: No players in raffle");
+
+        uint256 winnerIndex = uint256(keccak256(abi.encodePacked(msg.sender, block.timestamp, block.difficulty))) % players.length;
+        address winner = players[winnerIndex];
+        uint256 fee = totalFees / 10;
+        uint256 winnings = address(this).balance - fee;
+@>      totalFees = totalFees + uint64(fee);
+        players = new address[](0);
+        emit RaffleWinner(winner, winnings);
+    }
+```
+
+The max value of a `uint64` is `18446744073709551615`. In terms of ETH, this is only ~`18` ETH. Meaning, if more than 18ETH of fees are collected, the `fee` casting will truncate the value. 
+
+**Impact:** This means the `feeAddress` will not collect the correct amount of fees, leaving fees permanently stuck in the contract.
+
+**Proof of Concept:** 
+
+1. A raffle proceeds with a little more than 18 ETH worth of fees collected
+2. The line that casts the `fee` as a `uint64` hits
+3. `totalFees` is incorrectly updated with a lower amount
+
+You can replicate this in foundry's chisel by running the following:
+
+```javascript
+uint256 max = type(uint64).max
+uint256 fee = max + 1
+uint64(fee)
+// prints 0
+```
+
+**Recommended Mitigation:** Set `PuppyRaffle::totalFees` to a `uint256` instead of a `uint64`, and remove the casting. Their is a comment which says:
+
+```javascript
+// We do some storage packing to save gas
+```
+But the potential gas saved isn't worth it if we have to recast and this bug exists. 
+
+```diff
+-   uint64 public totalFees = 0;
++   uint256 public totalFees = 0;
+.
+.
+.
+    function selectWinner() external {
+        require(block.timestamp >= raffleStartTime + raffleDuration, "PuppyRaffle: Raffle not over");
+        require(players.length >= 4, "PuppyRaffle: Need at least 4 players");
+        uint256 winnerIndex =
+            uint256(keccak256(abi.encodePacked(msg.sender, block.timestamp, block.difficulty))) % players.length;
+        address winner = players[winnerIndex];
+        uint256 totalAmountCollected = players.length * entranceFee;
+        uint256 prizePool = (totalAmountCollected * 80) / 100;
+        uint256 fee = (totalAmountCollected * 20) / 100;
+-       totalFees = totalFees + uint64(fee);
++       totalFees = totalFees + fee;
+```
+
+
 # Low
 
 ### [L-1] `PuppyRaffle::getActivePlayerIndex` returns 0 for non-existent players and players at index 0 causing players to incorrectly think they have not entered the raffle`
@@ -433,3 +500,43 @@ It's best to keep code clean and follow CEI (Checks, Effects, Interactions).
 +   (bool success,) = winner.call{value: prizePool}("");
 +   require(success, "PuppyRaffle: Failed to send prize pool to winner");
 ```
+
+### [I-5] Use of "magic" numbers is discouraged
+​
+It can be confusing to see number literals in a codebase, and it's much more readable if the numbers are given a name.
+​
+Examples:
+ ```js
+    uint256 public constant PRIZE_POOL_PERCENTAGE = 80;
+    uint256 public constant FEE_PERCENTAGE = 20;
+    uint256 public constant POOL_PRECISION = 100;
+​
+    uint256 prizePool = (totalAmountCollected * PRIZE_POOL_PERCENTAGE) / POOL_PRECISION;
+    uint256 fee = (totalAmountCollected * FEE_PERCENTAGE) / POOL_PRECISION;
+```
+
+### [I-6] State Changes are Missing Events
+​
+A lack of emitted events can often lead to difficulty of external or front-end systems to accurately track changes within a protocol.
+​
+It is best practice to emit an event whenever an action results in a state change.
+​
+Examples:
+- `PuppyRaffle::totalFees` within the `selectWinner` function
+- `PuppyRaffle::raffleStartTime` within the `selectWinner` function
+- `PuppyRaffle::totalFees` within the `withdrawFees` function
+
+### [I-7] _isActivePlayer is never used and should be removed
+​
+**Description:** The function PuppyRaffle::_isActivePlayer is never used and should be removed.
+​
+    ```diff
+    -    function _isActivePlayer() internal view returns (bool) {
+    -        for (uint256 i = 0; i < players.length; i++) {
+    -            if (players[i] == msg.sender) {
+    -                return true;
+    -            }
+    -        }
+    -        return false;
+    -    }
+    ```
